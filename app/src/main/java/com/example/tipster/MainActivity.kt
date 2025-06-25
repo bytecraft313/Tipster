@@ -1,63 +1,97 @@
 package com.example.tipster
 
 import android.os.Bundle
-import android.widget.EditText
-import android.widget.SeekBar
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import java.text.NumberFormat
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.example.tipster.ui.theme.TipsterTheme
 
-class MainActivity : AppCompatActivity() {
-
-    private lateinit var billAmountEditText: EditText
-    private lateinit var tipLabel: TextView
-    private lateinit var tipAmountTextView: TextView
-    private lateinit var totalAmountTextView: TextView
-    private lateinit var tipSeekBar: SeekBar
-
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        billAmountEditText = findViewById(R.id.etBillAmount)
-        tipLabel = findViewById(R.id.tvTipLabel)
-        tipAmountTextView = findViewById(R.id.tvTipAmount)
-        totalAmountTextView = findViewById(R.id.tvTotalAmount)
-        tipSeekBar = findViewById(R.id.seekBarTip)
-
-        tipSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tipLabel.text = "Tip Percentage: $progress%"
-                calculateTip()
+        enableEdgeToEdge()
+        setContent {
+            TipsterTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    TipsterApp()
+                }
             }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) { /* no-op */ }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) { /* no-op */ }
-        })
-
-        // Optional: Calculate tip when user finishes typing bill amount
-        billAmountEditText.setOnEditorActionListener { _, _, _ ->
-            calculateTip()
-            true
         }
     }
+}
 
-    private fun calculateTip() {
-        val input = billAmountEditText.text.toString()
-        if (input.isEmpty()) {
-            tipAmountTextView.text = "Tip: $0.00"
-            totalAmountTextView.text = "Total: $0.00"
-            return
+@Composable
+fun TipsterApp() {
+    var billAmount by remember { mutableStateOf("") }
+    var tipPercent by remember { mutableStateOf("") }
+    var tipAmount by remember { mutableStateOf<String?>(null) }
+
+    val focusManager = LocalFocusManager.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top
+    ) {
+        OutlinedTextField(
+            value = billAmount,
+            onValueChange = { billAmount = it },
+            label = { Text("Enter bill amount") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Next
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = tipPercent,
+            onValueChange = { tipPercent = it },
+            label = { Text("Enter tip %") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                val bill = billAmount.toDoubleOrNull()
+                val tip = tipPercent.toDoubleOrNull()
+
+                tipAmount = if (bill != null && tip != null) {
+                    val calculatedTip = bill * tip / 100
+                    focusManager.clearFocus()
+                    "Tip amount: $%.2f".format(calculatedTip)
+                } else {
+                    "Please enter valid numbers"
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Calculate Tip")
         }
 
-        val bill = input.toDoubleOrNull() ?: 0.0
-        val tipPercent = tipSeekBar.progress
-        val tip = bill * tipPercent / 100
-        val total = bill + tip
+        Spacer(modifier = Modifier.height(16.dp))
 
-        val currencyFormat = NumberFormat.getCurrencyInstance()
-        tipAmountTextView.text = "Tip: ${currencyFormat.format(tip)}"
-        totalAmountTextView.text = "Total: ${currencyFormat.format(total)}"
+        Text(
+            text = tipAmount ?: "Tip amount will be shown here",
+            style = MaterialTheme.typography.titleMedium
+        )
     }
 }
